@@ -16,7 +16,7 @@ int main(){
         case 1:
             printf("Which grid size do you want (put n for nxn size grid): ");
             scanf("%d", grid);
-            
+
             break;
         
         case 2:
@@ -30,7 +30,7 @@ int main(){
         default:
             break;
         }
-    }
+    } //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
 
     return 0;
 }
