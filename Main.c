@@ -14,6 +14,17 @@ void clearScreen() {
 #endif
 }
 
+int clearBoard(int size, char board[11][11])
+{
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            board[i][j] = ' ';
+        }
+    }
+    return 0;
+}
 
 void printBoard(int size, char board[11][11]) {
     printf("\n  ");
@@ -100,6 +111,7 @@ char isGameOver(int size, char board[11][11]) {
 
 void Gamepvp(int grid,  char board[11][11]){
     int player = 1;
+    clearBoard(grid, board);
     while(1){
         clearScreen();
         printBoard(grid, board);
