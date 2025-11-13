@@ -40,58 +40,58 @@ void printBoard(int size, char board[11][11]) {
     }
 }
 
-    char isGameOver(int size, char board[11][11]) {
-        for (int i = 0; i < size; i++) { // check rows
-            char first = board[i][0];
-            if (first == ' ') continue;
-            int win = 1;
-            for (int j = 1; j < size; j++) {
-                if (board[i][j] != first) {
-                    win = 0;
-                    break;
-                }
+char isGameOver(int size, char board[11][11]) {
+    for (int i = 0; i < size; i++) { // check rows
+        char first = board[i][0];
+        if (first == ' ') continue;
+        int win = 1;
+        for (int j = 1; j < size; j++) {
+            if (board[i][j] != first) {
+                win = 0;
+                break;
             }
-        if (win) return first;
         }
+    if (win) return first;
+    }
 
-        for (int i = 0; i < size; i++) {//check for collums
-            char first = board[0][i];
-            if (first == ' ') continue;
-            int win = 1;
-            for (int j = 1; j < size; j++) {
-                if (board[i][j] != first) {
-                    win = 0;
-                    break;
-                }
+    for (int i = 0; i < size; i++) {//check for collums
+        char first = board[0][i];
+        if (first == ' ') continue;
+        int win = 1;
+        for (int j = 1; j < size; j++) {
+            if (board[j][i] != first) {
+                win = 0;
+                break;
             }
-        if (win) return first;
         }
-        
-
-        char first = board[0][0];   // check for diagonals 
-            if (first != ' '){
-                int win = 1;
-                for (int i = 1; i < size; i++) {
-                    if (board[i][i] != first) {
-                        win = 0;
-                        break;
-                    }
-                }
-            if (win) return first;
-        }
-        
+    if (win) return first;
+    }
     
-        first = board[0][size - 1]; // check for diagonals from other way
-        if (first != ' ') {
+
+    char first = board[0][0];   // check for diagonals 
+        if (first != ' '){
             int win = 1;
             for (int i = 1; i < size; i++) {
-                if (board[i][size - 1 - i] != first) {
+                if (board[i][i] != first) {
                     win = 0;
                     break;
                 }
             }
-            if (win) return first;
+        if (win) return first;
+    }
+    
+
+    first = board[0][size - 1]; // check for diagonals from other way
+    if (first != ' ') {
+        int win = 1;
+        for (int i = 1; i < size; i++) {
+            if (board[i][size - 1 - i] != first) {
+                win = 0;
+                break;
+            }
         }
+        if (win) return first;
+    }
 
     
     return ' '; // no winner yet
@@ -146,11 +146,7 @@ int main(){
     int option, always = 1, grid;
     char board[11][11];
     
-    for (int i = 0; i < 11; i++) {
-        for (int j = 0; j < 11; j++) {
-            board[i][j] = ' ';
-        }
-    }
+    
     
     printf("Welcome to the Tic-Tac-Toe Game\n");
     while(always){
@@ -163,6 +159,11 @@ int main(){
         switch (option)
         {
         case 1:
+            for (int i = 0; i < 11; i++) {
+                for (int j = 0; j < 11; j++) {
+                    board[i][j] = ' ';
+                }
+            }
             printf("Which grid size do you want (put n for nxn size grid): ");
             scanf("%d", &grid);
             Gamepvp(grid, board);
