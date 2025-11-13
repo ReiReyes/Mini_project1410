@@ -5,25 +5,25 @@
 #include <unistd.h> 
 
 void clearScreen() {
-#ifdef _WIN32
-    Sleep(500);       
+#ifdef _WIN32         
     system("cls");     
-#else
-    sleep(0.5);          
+#else      
     system("clear");   
 #endif
 }
-
-int clearBoard(int size, char board[11][11])
+void mySleep(){
+    Sleep(1000); 
+    sleep(1);
+}
+void clearBoard(char board[11][11])
 {
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < 11; i++)
     {
-        for (int j = 0; j < size; j++)
+        for (int j = 0; j < 11; j++)
         {
             board[i][j] = ' ';
         }
     }
-    return 0;
 }
 
 void printBoard(int size, char board[11][11]) {
@@ -104,14 +104,21 @@ char isGameOver(int size, char board[11][11]) {
         if (win) return first;
     }
 
+    for(int i = 0; i < size; i++){
+        for(int j = 0; j < size; j++){
+            if(board[i][j] == ' '){
+                return ' '; // no winner yet
+            }
+        }
     
-    return ' '; // no winner yet
+    }
+return 'D'; // Draw
 }
 
 
-void Gamepvp(int grid,  char board[11][11]){
+void Gamepvp(int grid,  char board[11][11], int points[2]){
     int player = 1;
-    clearBoard(grid, board);
+    clearBoard(board);
     while(1){
         clearScreen();
         printBoard(grid, board);
@@ -127,6 +134,8 @@ void Gamepvp(int grid,  char board[11][11]){
         row = rowchar - 64;
         if (row < 1 || row > grid || col < 1 || col > grid || board[row - 1][col - 1] != ' ') {
                 printf("Invalid move, please try again.\n");
+                mySleep();
+                
         } else {
                 if (player == 1) {
                     board[row - 1][col - 1] = 'X';
@@ -142,8 +151,14 @@ void Gamepvp(int grid,  char board[11][11]){
             printf("Game over!\n");
             printBoard(grid, board);
             char winner = isGameOver(grid, board);
-            if (winner != ' ') {
+            if (winner != 'D') {
                 printf("Player %c wins!\n", winner);
+                if(winner == 'X'){
+                    points[0]++;
+                }else{
+                    points[1]++;
+                }
+                
             } else {
                 printf("It's a draw!\n");
             }
@@ -153,9 +168,13 @@ void Gamepvp(int grid,  char board[11][11]){
         
 }
 
+void printScore(int points[2]){
+    printf("\nScores: \nPlayer 1: %d \nPlayer 2: %d\n", points[0], points[1]);
+}
+
 
 int main(){
-    int option, always = 1, grid;
+    int option, always = 1, grid, keepPlaying = 1, points[2] = {0,0};
     char board[11][11];
     
     
@@ -171,15 +190,33 @@ int main(){
         switch (option)
         {
         case 1:
-            for (int i = 0; i < 11; i++) {
-                for (int j = 0; j < 11; j++) {
-                    board[i][j] = ' ';
+            while(1){
+                printf("\nWhich grid size do you want (put n for nxn size grid): ");
+                scanf("%d", &grid);
+                if(grid >= 3 && grid <= 10){
+                    break;
+                }else{
+                    printf("\nInvalid Grid Size");
                 }
             }
-            printf("Which grid size do you want (put n for nxn size grid): ");
-            scanf("%d", &grid);
-            Gamepvp(grid, board);
-            
+            while(keepPlaying){
+                clearBoard(board);
+                Gamepvp(grid, board, points);
+                printScore(points);
+                while (1){
+                    printf("\n(1) Yes\n(2) No \nDo you want a rematch: ");
+                    scanf("%d", &keepPlaying);
+                    if(keepPlaying == 2){
+                        keepPlaying = 0;
+                        clearScreen();
+                        break;
+                    }else if(keepPlaying == 1){
+                        break;
+                    }else{
+                        printf("\nInvalid Input, \n%d is not a valid option", keepPlaying);
+                    }
+                }   
+            }
             break;
         
         case 2:
@@ -193,6 +230,7 @@ int main(){
         default:
             break;
         }
+        
     } 
 
     return 0;
