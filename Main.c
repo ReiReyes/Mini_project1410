@@ -141,7 +141,6 @@ int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
     int *ptr = aiMove;
 
     for (int i = 0; i < size; i++) { //row winning
-        playerWin=0;
         for (int j = 0; j < size; j++) {
             if (board[i][j] == 'O') {
                 playerWin++;
@@ -161,7 +160,7 @@ int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
         }
     }
 
-    for (int i = 0; i < size; i++) { // colum winning
+    for (int i = 0; i < size; i++) { // column winning
         playerWin=0;
         for (int j = 0; j < size; j++) {
             if (board[j][i] == 'O') {
@@ -241,7 +240,7 @@ int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
         }
     }
 
-    for (int i = 0; i < size; i++) { // colum blocking
+    for (int i = 0; i < size; i++) { // column blocking
         playerWin=0;
         for (int j = 0; j < size; j++) {
             if (board[j][i] == 'X') {
@@ -290,8 +289,92 @@ int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
             playerWin--;
         }
     }
+
     if(playerWin == size-1){
         for (int i = 0; i < size; i++) {
+            if (board[i][size - 1 - i] == ' ') {
+                aiMove[0] = i;
+                aiMove[1] = size - 1 - i;
+                return ptr;
+            }
+    }
+    }
+    for (int i = 0; i < size; i++) { //row best move
+        playerWin=0;
+        for (int j = 0; j < size; j++) {
+            if (board[i][j] == 'O') {
+                playerWin++;
+            }
+            if (board[i][j] == 'X') {
+                playerWin = 0;
+                break;
+            }
+        }
+        if(playerWin != 0){
+            for (int j = 0; j < size; j++) {
+                if(board[i][j] == ' '){
+                    aiMove[0] = i;
+                    aiMove[1] = j;
+                    return ptr;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < size; i++) { // column Best move
+        playerWin=0;
+        for (int j = 0; j < size; j++) {
+            if (board[j][i] == 'O') {
+                playerWin++;
+            }
+            if (board[j][i] == 'X') {
+                playerWin = 0;
+                break;
+            }
+        }
+        if(playerWin != 0){
+            for (int j = 0; j < size; j++) {
+                if(board[j][i] == ' '){
+                    aiMove[0] = j;
+                    aiMove[1] = i;
+                    return ptr;
+                }
+            }
+        }
+    }
+
+    playerWin = 0;
+    for (int i = 0; i < size; i++) { //Diagonal Best Move
+        if (board[i][i] == 'O') {
+            playerWin++;
+        }
+        if (board[i][i] == 'X') {
+            playerWin = 0;
+            break;
+        }
+    }
+    if(playerWin != 0){
+        for (int i = 0; i < size; i++) {
+            if (board[i][i] == ' ') {
+                aiMove[0] = i;
+                aiMove[1] = i;
+                return ptr;
+            }
+    }
+    }
+
+    playerWin = 0;
+    for (int i = 0; i < size; i++) { //AntiDiagonal Best Move
+        if (board[i][size - 1 - i] == 'O') {
+            playerWin++;
+        }
+        if (board[i][size - 1 - i] == 'X') {
+            playerWin = 0;
+            break;
+        }
+    }
+    if(playerWin != 0){
+        for (int i = 1; i < size; i++) {
             if (board[i][size - 1 - i] == ' ') {
                 aiMove[0] = i;
                 aiMove[1] = size - 1 - i;
@@ -418,7 +501,7 @@ void printScore(int points[2], int option){
     if(option != 2){
         printf("\nScores: \nPlayer 1: %d \nPlayer 2: %d\n", points[0], points[1]);
     }else{
-        printf("\nScores: \nPlayer 1: %d \nAi: %d\n", points[0], points[1]);
+        printf("\nScores: \nPlayer 1: %d \nAI: %d\n", points[0], points[1]);
     }
     
 }
