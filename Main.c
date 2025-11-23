@@ -4,6 +4,12 @@
 #include <windows.h> 
 #include <unistd.h> 
 
+int MALLOC_COUNT = 0;
+int FREE_COUNT = 0;
+
+#define malloc(x) (MALLOC_COUNT++, malloc(x))
+#define free(x) (FREE_COUNT++, free(x))
+
 void clearScreen() {
 #ifdef _WIN32         
     system("cls");     
@@ -16,18 +22,17 @@ void mySleep(){
     Sleep(1000); 
     sleep(1);
 }
-void clearBoard(char board[MAX_SIZE][MAX_SIZE])
-{
-    for (int i = 0; i < 11; i++)
+
+void clearBoard(char **board, int size){
+    for (int i = 0; i < size; i++)
     {
-        for (int j = 0; j < 11; j++)
+        for (int j = 0; j < size; j++)
         {
             board[i][j] = ' ';
         }
     }
 }
-
-void printBoard(int size, char board[MAX_SIZE][MAX_SIZE]) {
+void printBoard(int size, char **board) {
     printf("\n  ");
     for(int i =1; i <= size; i++){
         printf(" %d  ",i);
@@ -53,8 +58,7 @@ void printBoard(int size, char board[MAX_SIZE][MAX_SIZE]) {
 }
 
 
-
-char isGameOver(int size, char board[MAX_SIZE][MAX_SIZE]) {
+char isGameOver(int size, char **board) {
     for (int i = 0; i < size; i++) { // check rows
         char first = board[i][0];
         if (first == ' ') continue;
@@ -136,11 +140,12 @@ int wantToPlay(int keepPlaying){
     return 0;
 }
 
-int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
+int* aiMoveDecision(int size, char **board){
     int playerWin = 0, aiMove[2];
     int *ptr = aiMove;
 
     for (int i = 0; i < size; i++) { //row winning
+        playerWin=0;
         for (int j = 0; j < size; j++) {
             if (board[i][j] == 'O') {
                 playerWin++;
@@ -394,9 +399,9 @@ int* aiMoveDecision(int size, char board[MAX_SIZE][MAX_SIZE]){
     }
     return ptr;
 }
-void Gamepva(int grid,  char board[MAX_SIZE][MAX_SIZE], int points[2]){
+void Gamepva(int grid,  char **board, int points[2]){
     int player = 1;
-    clearBoard(board);
+    clearBoard(board, grid);
     while(1){
         clearScreen();
         printBoard(grid, board);
@@ -445,9 +450,9 @@ void Gamepva(int grid,  char board[MAX_SIZE][MAX_SIZE], int points[2]){
     }
 }
 }
-void Gamepvp(int grid,  char board[MAX_SIZE][MAX_SIZE], int points[2]){
+void Gamepvp(int grid,  char **board, int points[2]){
     int player = 1;
-    clearBoard(board);
+    clearBoard(board, grid);
     while(1){
         clearScreen();
         printBoard(grid, board);
@@ -506,14 +511,31 @@ void printScore(int points[2], int option){
     
 }
 
+typedef struct {
+    int games_played;
+    int wins_player1;
+    int wins_player2;
+    int draws;
+    int * win_patterns; // Dynamic array : tracks HOW games were won
+    int pattern_count;
+    int pattern_capacity;
+    } GameStats ;
+
+char** createBoard ( int size, char **out_data ){
+    char *data = malloc(size * size * sizeof(char));
+    char **board = malloc(size * sizeof(char*));
+    for (int i = 0; i < size; i++) {
+        board[i] = data + (i * size);
+    }
+    *out_data = data;
+    return board;
+}
 
 int main(){
     srand(time(NULL));
     int option, always = 1, grid, keepPlaying, points[2] = {0,0};
-    char board[MAX_SIZE][MAX_SIZE];
-    
-    
-    
+    char *data;
+    char **boardptr;
     printf("Welcome to the Tic-Tac-Toe Game\n");
     while(always){
         printf("(1) Player vs Player");
@@ -522,16 +544,25 @@ int main(){
         printf("\nSelect the option you would like: ");
         scanf("%d", &option);
         if (option == 2 || option == 1){
-            while(1){
+            while (1) {
                 printf("\nWhich grid size do you want (put n for nxn size grid): ");
-                scanf("%d", &grid);
-                if(grid >= 3 && grid <= 10){
-                    break;
-                }else{
-                    printf("\nInvalid Grid Size");
+
+                if (scanf("%d", &grid) != 1) {
+                    printf("Invalid input. Please enter a number.\n");
+                    while (getchar() != '\n');
+                    continue; 
+                }
+                while (getchar() != '\n'); 
+                if (grid >= 3 && grid <= 15) {
+                    boardptr = createBoard(grid, &data);
+                    break; 
+                } else {
+                    printf("Invalid grid size. Must be between 3 and 15.\n");
                 }
             }
         }
+        
+        
         switch (option)
         {
         case 1:
@@ -539,12 +570,15 @@ int main(){
             points[0] = 0;
             points[1] = 0;
             while(keepPlaying){
-                clearBoard(board);
-                Gamepvp(grid, board, points);
+                clearBoard(boardptr, grid);
+                Gamepvp(grid, boardptr, points);
                 printScore(points, option);
                 keepPlaying = wantToPlay(keepPlaying);
                 
             }
+            free(boardptr);
+            free(data);
+            
             break;
         
         case 2:
@@ -552,12 +586,13 @@ int main(){
             points[0] = 0;
             points[1] = 0;
             while(keepPlaying){
-                clearBoard(board);
-                Gamepva(grid, board, points);
+                clearBoard(boardptr, grid);
+                Gamepva(grid, boardptr, points);
                 printScore(points, option);
                 keepPlaying = wantToPlay(keepPlaying);
             }
-            
+            free(boardptr);
+            free(data);
             break;
         case 3:
             printf("\nThank You for playing");
@@ -569,6 +604,7 @@ int main(){
         }
         
     } 
+    printf("Mallocs: %d\nFrees: %d\n", MALLOC_COUNT, FREE_COUNT); // Memory allocation report erase when not needed
 
     return 0;
 }
