@@ -22,7 +22,6 @@ void mySleep(){
     Sleep(1000); 
     sleep(1);
 }
-
 void clearBoard(char **board, int size){
     for (int i = 0; i < size; i++)
     {
@@ -32,6 +31,61 @@ void clearBoard(char **board, int size){
         }
     }
 }
+char** createBoard ( int size, char **out_data ){
+    char *data = malloc(size * size * sizeof(char));
+    char **board = malloc(size * sizeof(char*));
+    for (int i = 0; i < size; i++) {
+        board[i] = data + (i * size);
+    }
+    *out_data = data;
+    return board;
+}
+
+int saveGame(char **board, int size, int last_move, int option, const char *filename)
+{
+    FILE *file = fopen(filename, "w");
+    if (!file) return -1;
+
+    fprintf(file, "%d\n", size);
+
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            fputc(board[i][j], file);
+        }
+        fputc('\n', file);
+    }
+
+    fprintf(file, "%d\n", last_move);
+    fprintf(file, "%d\n", option);
+
+    fclose(file);
+    return 0;
+}
+
+int loadGame(char ***board, int *size, int *last_move, int *option,const char *filename, char **data) {
+    FILE *file = fopen(filename, "r");
+    if (!file) return -1;
+
+    fscanf(file, "%d\n", size);
+
+    *board = createBoard(*size, data);   // alloc board + data
+
+    for (int i = 0; i < *size; i++) {
+        for (int j = 0; j < *size; j++) {
+            (*board)[i][j] = fgetc(file);
+        }
+        fgetc(file); // newline
+        
+        
+    }
+    fscanf(file, "%d\n", last_move);
+    fscanf(file, "%d\n", option); 
+    
+
+    fclose(file);
+    return 0;
+}
+
 void printBoard(int size, char **board) {
     printf("\n  ");
     for(int i =1; i <= size; i++){
@@ -124,7 +178,7 @@ return 'D'; // Draw
 
 int wantToPlay(int keepPlaying){
     while (1){
-        printf("\n(1) Yes\n(2) No \nDo you want a rematch: ");
+        printf("\n(1) Yes\n(2) No (3) Save game\nDo you want a rematch: "); // have to implement save game option
         scanf("%d", &keepPlaying);
         if(keepPlaying == 2){
             keepPlaying = 0;
@@ -399,21 +453,32 @@ int* aiMoveDecision(int size, char **board){
     }
     return ptr;
 }
-void Gamepva(int grid,  char **board, int points[2]){
+void Gamepva(int grid,  char **board, int points[2], int playerload, int *save, int option){
     int player = 1;
-    clearBoard(board, grid);
+    if (playerload != 0) {
+        player = playerload;
+    }else{
+        clearBoard(board, grid);
+    }
     while(1){
         clearScreen();
         printBoard(grid, board);
         int row, col;
         char rowchar;
-        printf("Player %d, please enter a row and column (e.g., 1 A): ", player);
+        printf("Player %d, please enter a row and column (e.g., 1 A) or enter (0 0) to save: ", player);
         while (scanf("%d %c", &col, &rowchar) != 2) {
                 printf("Invalid input, please try again: ");
                 while (getchar() != '\n');
         }
         
         row = rowchar - 64;
+        if (col == 0 || row == -64) {
+                clearScreen();
+                saveGame(board, grid, player, option, "saved_game.txt");
+                printf("Game saved successfully.\n");
+                *save = 1;
+                break;
+        }
         if (row < 1 || row > grid || col < 1 || col > grid || board[row - 1][col - 1] != ' ') {
                 printf("Invalid move, please try again.\n");
                 mySleep();
@@ -450,22 +515,33 @@ void Gamepva(int grid,  char **board, int points[2]){
     }
 }
 }
-void Gamepvp(int grid,  char **board, int points[2]){
+void Gamepvp(int grid,  char **board, int points[2], int playerload, int *save, int option){
     int player = 1;
-    clearBoard(board, grid);
+    if (playerload != 0) {
+        player = playerload;
+    }else{
+        clearBoard(board, grid);
+        }
     while(1){
         clearScreen();
         printBoard(grid, board);
         int row, col;
         char rowchar;
         
-        printf("Player %d, please enter a row and column (e.g., 1 A): ", player);
+        printf("Player %d, please enter a row and column (e.g., 1 A) or enter (0 0) to save: ", player);
         while (scanf("%d %c", &col, &rowchar) != 2) {
                 printf("Invalid input, please try again: ");
                 while (getchar() != '\n');
         }
         
         row = rowchar - 64;
+        if (col == 0 || row == -64) {
+                clearScreen();
+                saveGame(board, grid, player, option, "saved_game.txt");
+                printf("Game saved successfully.\n");
+                *save = 1;
+                break;
+        }
         if (row < 1 || row > grid || col < 1 || col > grid || board[row - 1][col - 1] != ' ') {
                 printf("Invalid move, please try again.\n");
                 mySleep();
@@ -521,26 +597,22 @@ typedef struct {
     int pattern_capacity;
     } GameStats ;
 
-char** createBoard ( int size, char **out_data ){
-    char *data = malloc(size * size * sizeof(char));
-    char **board = malloc(size * sizeof(char*));
-    for (int i = 0; i < size; i++) {
-        board[i] = data + (i * size);
-    }
-    *out_data = data;
-    return board;
-}
+
+
+
+
 
 int main(){
     srand(time(NULL));
-    int option, always = 1, grid, keepPlaying, points[2] = {0,0};
-    char *data;
-    char **boardptr;
+    int option, always = 1, grid, keepPlaying, points[2] = {0,0}, playerload = 0;
+    char *data = NULL;
+    char **boardptr = NULL;
     printf("Welcome to the Tic-Tac-Toe Game\n");
     while(always){
         printf("(1) Player vs Player");
         printf("\n(2) Player vs AI");
-        printf("\n(3) Exit the game");
+        printf("\n(3) Load saved game");
+        printf("\n(4) Exit the game");
         printf("\nSelect the option you would like: ");
         scanf("%d", &option);
         if (option == 2 || option == 1){
@@ -561,7 +633,7 @@ int main(){
                 }
             }
         }
-        
+        int save = 0;
         
         switch (option)
         {
@@ -571,13 +643,18 @@ int main(){
             points[1] = 0;
             while(keepPlaying){
                 clearBoard(boardptr, grid);
-                Gamepvp(grid, boardptr, points);
+                Gamepvp(grid, boardptr, points, playerload, &save, option);
+                if(save == 1){
+                    break;
+                }
                 printScore(points, option);
                 keepPlaying = wantToPlay(keepPlaying);
                 
             }
             free(boardptr);
             free(data);
+            data = NULL;
+            boardptr = NULL;
             
             break;
         
@@ -587,14 +664,50 @@ int main(){
             points[1] = 0;
             while(keepPlaying){
                 clearBoard(boardptr, grid);
-                Gamepva(grid, boardptr, points);
+                Gamepva(grid, boardptr, points, playerload, &save, option);
+                if(save == 1){
+                    break;
+                }
                 printScore(points, option);
                 keepPlaying = wantToPlay(keepPlaying);
             }
             free(boardptr);
             free(data);
+            data = NULL;
+            boardptr = NULL;
             break;
         case 3:
+            
+            if (boardptr != NULL) {
+                free(data);
+                free(boardptr);
+            }
+            if (loadGame(&boardptr, &grid, &playerload, &option, "saved_game.txt", &data) == -1) {
+                printf("No saved game found.\n");
+                break;
+            }   
+            keepPlaying =1;
+            while (keepPlaying) {
+                if(option == 2){
+                    Gamepva(grid, boardptr, points, playerload, &save, option);
+                }else{
+                    Gamepvp(grid, boardptr, points, playerload, &save, option);
+                }
+                if(save == 1){
+                    break;
+                }
+                printScore(points, option);
+                keepPlaying = wantToPlay(keepPlaying);
+                playerload = 0;
+            }
+
+            free(data);
+            free(boardptr);
+            data = NULL;
+            boardptr = NULL;
+            break;
+            
+        case 4:
             printf("\nThank You for playing");
             always = 0;
             break;
@@ -604,7 +717,7 @@ int main(){
         }
         
     } 
-    printf("Mallocs: %d\nFrees: %d\n", MALLOC_COUNT, FREE_COUNT); // Memory allocation report erase when not needed
+    printf("\nMallocs: %d\nFrees: %d\n", MALLOC_COUNT, FREE_COUNT); // Memory allocation report erase when not needed
 
     return 0;
 }
