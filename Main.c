@@ -10,6 +10,45 @@ int FREE_COUNT = 0;
 #define malloc(x) (MALLOC_COUNT++, malloc(x))
 #define free(x) (FREE_COUNT++, free(x))
 
+typedef struct {
+    int games_played;
+    int wins_player1;
+    int wins_player2;
+    int draws;
+    int * win_patterns; // Dynamic array : tracks HOW games were won 
+    int pattern_count;
+    int pattern_capacity;
+    } GameStats ;
+
+
+void updateStats ( GameStats * stats , char winner){
+    stats->games_played++;
+    if (winner == 'X') {
+        stats->wins_player1++;
+    } else if (winner == 'O') {
+        stats->wins_player2++;
+    } else if (winner == 'D') {
+        stats->draws++;
+    }
+    if (winner != 'D') {
+        if (stats->pattern_count >= stats->pattern_capacity) {
+            stats->pattern_capacity *= 2;
+            stats->win_patterns = realloc(stats->win_patterns, stats->pattern_capacity * sizeof(char));
+        }
+        stats->win_patterns[stats->pattern_count] = winner;
+        stats->pattern_count++;
+    }
+}
+
+void freeGameStats ( GameStats * stats ){
+    stats->games_played = 0;
+    stats->wins_player1 = 0;
+    stats->wins_player2 = 0;
+    stats->draws = 0;
+    stats->pattern_count = 0;
+    stats->pattern_capacity = 0;
+    free(stats->win_patterns);
+}
 void clearScreen() {
 #ifdef _WIN32         
     system("cls");     
@@ -41,7 +80,7 @@ char** createBoard ( int size, char **out_data ){
     return board;
 }
 
-int saveGame(char **board, int size, int last_move, int option, const char *filename)
+int saveGame(char **board, int size, int last_move, int option, const char *filename, GameStats *stats, int inplay)
 {
     FILE *file = fopen(filename, "w");
     if (!file) return -1;
@@ -58,11 +97,21 @@ int saveGame(char **board, int size, int last_move, int option, const char *file
     fprintf(file, "%d\n", last_move);
     fprintf(file, "%d\n", option);
 
+    fprintf(file, "%d\n", stats->games_played);
+    fprintf(file, "%d\n", stats->wins_player1);
+    fprintf(file, "%d\n", stats->wins_player2);
+    fprintf(file, "%d\n", stats->draws);
+    fprintf(file, "%d\n", stats->pattern_count);
+    fprintf(file, "%d\n", stats->pattern_capacity);
+    for (int i = 0; i < stats->pattern_count; i++) {
+        fputc(stats->win_patterns[i], file);
+    }
+    fprintf(file, "%d\n", inplay); 
     fclose(file);
     return 0;
 }
 
-int loadGame(char ***board, int *size, int *last_move, int *option,const char *filename, char **data) {
+int loadGame(char ***board, int *size, int *last_move, int *option,const char *filename, char **data, GameStats *stats, int *inplay) {
     FILE *file = fopen(filename, "r");
     if (!file) return -1;
 
@@ -80,8 +129,17 @@ int loadGame(char ***board, int *size, int *last_move, int *option,const char *f
     }
     fscanf(file, "%d\n", last_move);
     fscanf(file, "%d\n", option); 
-    
-
+    fscanf(file, "%d\n", &stats->games_played);
+    fscanf(file, "%d\n", &stats->wins_player1);
+    fscanf(file, "%d\n", &stats->wins_player2);
+    fscanf(file, "%d\n", &stats->draws);
+    fscanf(file, "%d\n", &stats->pattern_count);
+    fscanf(file, "%d\n", &stats->pattern_capacity);
+    stats->win_patterns = malloc(stats->pattern_capacity * sizeof(char));
+    for (int i = 0; i < stats->pattern_count; i++) {
+        stats->win_patterns[i] = fgetc(file);
+    }
+    fscanf(file, "%d\n", inplay);
     fclose(file);
     return 0;
 }
@@ -175,21 +233,45 @@ char isGameOver(int size, char **board) {
     }
 return 'D'; // Draw
 }
-
-int wantToPlay(int keepPlaying){
+void printStatistics ( const GameStats * stats, int option ){ 
+    printf("Games Played: %d\n", stats->games_played);
+    printf("Player 1 Wins: %d\n", stats->wins_player1);
+    if(option == 2){
+        printf("AI Wins: %d\n", stats->wins_player2);
+    }else{
+        printf("Player 2 Wins: %d\n", stats->wins_player2);
+    }
+    printf("Draws: %d\n", stats->draws);
+    printf("Win Patterns: ");
+    for (int i = 0; i < stats->pattern_count; i++) {
+        printf("%c ", stats->win_patterns[i]);
+    }
+    printf("\n");
+}
+int wantToPlay(int keepPlaying, GameStats *stats, int grid, char **board, int player, int option, int inplay){
     while (1){
-        printf("\n(1) Yes\n(2) No (3) Save game\nDo you want a rematch: "); // have to implement save game option
+        printf("\n(1) Play Rematch\n(2) Check Stats \n(3) Save Game\n(4) Go Back To Menu\nWhat do you want to do: "); // have to implement save game option
         scanf("%d", &keepPlaying);
-        if(keepPlaying == 2){
-            keepPlaying = 0;
-            clearScreen();
-            return keepPlaying;
-            
-        }else if(keepPlaying == 1){
-            return keepPlaying;
-        }else{
-            printf("\nInvalid Input, \n%d is not a valid option", keepPlaying);
-        }
+            if(keepPlaying == 4){
+                keepPlaying = 0;
+                clearScreen();
+                freeGameStats(stats);
+                return keepPlaying;
+                
+            }else if(keepPlaying == 3){
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                clearScreen();
+                printf("Game saved successfully.\n");
+            }else if(keepPlaying == 2){
+                clearScreen();
+                printStatistics(stats, option);
+            }
+            else if(keepPlaying == 1){
+                return keepPlaying;
+            }else{
+                printf("\nInvalid Input, \n%d is not a valid option", keepPlaying);
+            }
+        
     }
     return 0;
 }
@@ -453,7 +535,7 @@ int* aiMoveDecision(int size, char **board){
     }
     return ptr;
 }
-void Gamepva(int grid,  char **board, int points[2], int playerload, int *save, int option){
+void Gamepva(int grid,  char **board, int playerload, int *save, int option, GameStats *stats){
     int player = 1;
     if (playerload != 0) {
         player = playerload;
@@ -474,7 +556,9 @@ void Gamepva(int grid,  char **board, int points[2], int playerload, int *save, 
         row = rowchar - 64;
         if (col == 0 || row == -64) {
                 clearScreen();
-                saveGame(board, grid, player, option, "saved_game.txt");
+                int inplay = 1;
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                freeGameStats(stats);
                 printf("Game saved successfully.\n");
                 *save = 1;
                 break;
@@ -500,13 +584,9 @@ void Gamepva(int grid,  char **board, int points[2], int playerload, int *save, 
             printf("Game over!\n");
             printBoard(grid, board);
             char winner = isGameOver(grid, board);
+            updateStats(stats, winner);
             if (winner != 'D') {
                 printf("Player %c wins!\n", winner);
-                if(winner == 'X'){
-                    points[0]++;
-                }else{
-                    points[1]++;
-                }
                 
             } else {
                 printf("It's a draw!\n");
@@ -515,7 +595,7 @@ void Gamepva(int grid,  char **board, int points[2], int playerload, int *save, 
     }
 }
 }
-void Gamepvp(int grid,  char **board, int points[2], int playerload, int *save, int option){
+void Gamepvp(int grid,  char **board, int playerload, int *save, int option, GameStats *stats){
     int player = 1;
     if (playerload != 0) {
         player = playerload;
@@ -537,7 +617,9 @@ void Gamepvp(int grid,  char **board, int points[2], int playerload, int *save, 
         row = rowchar - 64;
         if (col == 0 || row == -64) {
                 clearScreen();
-                saveGame(board, grid, player, option, "saved_game.txt");
+                int inplay = 1;
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                freeGameStats(stats);
                 printf("Game saved successfully.\n");
                 *save = 1;
                 break;
@@ -561,14 +643,9 @@ void Gamepvp(int grid,  char **board, int points[2], int playerload, int *save, 
             printf("Game over!\n");
             printBoard(grid, board);
             char winner = isGameOver(grid, board);
+            updateStats(stats, winner);
             if (winner != 'D') {
                 printf("Player %c wins!\n", winner);
-                if(winner == 'X'){
-                    points[0]++;
-                }else{
-                    points[1]++;
-                }
-                
             } else {
                 printf("It's a draw!\n");
             }
@@ -578,35 +655,37 @@ void Gamepvp(int grid,  char **board, int points[2], int playerload, int *save, 
         
 }
 
-void printScore(int points[2], int option){
+void printScore(int option, GameStats *stats){
     if(option != 2){
-        printf("\nScores: \nPlayer 1: %d \nPlayer 2: %d\n", points[0], points[1]);
+        printf("\nScores: \nPlayer 1: %d \nPlayer 2: %d\n", stats->wins_player1, stats->wins_player2);
     }else{
-        printf("\nScores: \nPlayer 1: %d \nAI: %d\n", points[0], points[1]);
+        printf("\nScores: \nPlayer 1: %d \nAI: %d\n", stats->wins_player1, stats->wins_player2);
     }
     
 }
 
-typedef struct {
-    int games_played;
-    int wins_player1;
-    int wins_player2;
-    int draws;
-    int * win_patterns; // Dynamic array : tracks HOW games were won
-    int pattern_count;
-    int pattern_capacity;
-    } GameStats ;
 
 
-
+GameStats  createGameStats (){
+    GameStats stats;
+    stats.games_played = 0;
+    stats.wins_player1 = 0;
+    stats.wins_player2 = 0;
+    stats.draws = 0;
+    stats.pattern_count = 0;
+    stats.pattern_capacity = 5; 
+    stats.win_patterns = malloc(stats.pattern_capacity *sizeof(char));
+    return stats;
+}
 
 
 
 int main(){
     srand(time(NULL));
-    int option, always = 1, grid, keepPlaying, points[2] = {0,0}, playerload = 0;
+    int option, always = 1, grid, keepPlaying, playerload = 0, inplay = 0;
     char *data = NULL;
     char **boardptr = NULL;
+    GameStats stats;
     printf("Welcome to the Tic-Tac-Toe Game\n");
     while(always){
         printf("(1) Player vs Player");
@@ -627,6 +706,7 @@ int main(){
                 while (getchar() != '\n'); 
                 if (grid >= 3 && grid <= 15) {
                     boardptr = createBoard(grid, &data);
+                    stats = createGameStats();
                     break; 
                 } else {
                     printf("Invalid grid size. Must be between 3 and 15.\n");
@@ -634,21 +714,22 @@ int main(){
             }
         }
         int save = 0;
+       
         
         switch (option)
         {
         case 1:
             keepPlaying = 1;
-            points[0] = 0;
-            points[1] = 0;
+            stats.wins_player1 = 0;
+            stats.wins_player2 = 0;
             while(keepPlaying){
                 clearBoard(boardptr, grid);
-                Gamepvp(grid, boardptr, points, playerload, &save, option);
+                Gamepvp(grid, boardptr, playerload, &save, option, &stats);
                 if(save == 1){
                     break;
                 }
-                printScore(points, option);
-                keepPlaying = wantToPlay(keepPlaying);
+                printScore(option, &stats);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
                 
             }
             free(boardptr);
@@ -660,16 +741,16 @@ int main(){
         
         case 2:
             keepPlaying =1;
-            points[0] = 0;
-            points[1] = 0;
+            stats.wins_player1 = 0;
+            stats.wins_player2 = 0;
             while(keepPlaying){
                 clearBoard(boardptr, grid);
-                Gamepva(grid, boardptr, points, playerload, &save, option);
+                Gamepva(grid, boardptr, playerload, &save, option, &stats);
                 if(save == 1){
                     break;
                 }
-                printScore(points, option);
-                keepPlaying = wantToPlay(keepPlaying);
+                printScore(option, &stats);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
             }
             free(boardptr);
             free(data);
@@ -682,22 +763,25 @@ int main(){
                 free(data);
                 free(boardptr);
             }
-            if (loadGame(&boardptr, &grid, &playerload, &option, "saved_game.txt", &data) == -1) {
+            if (loadGame(&boardptr, &grid, &playerload, &option, "saved_game.txt", &data, &stats, &inplay) == -1) {
                 printf("No saved game found.\n");
                 break;
-            }   
+            }
+            if(inplay == 0){
+                playerload = 0;
+            }
             keepPlaying =1;
             while (keepPlaying) {
                 if(option == 2){
-                    Gamepva(grid, boardptr, points, playerload, &save, option);
+                    Gamepva(grid, boardptr, playerload, &save, option, &stats);
                 }else{
-                    Gamepvp(grid, boardptr, points, playerload, &save, option);
+                    Gamepvp(grid, boardptr, playerload, &save, option, &stats);
                 }
                 if(save == 1){
                     break;
                 }
-                printScore(points, option);
-                keepPlaying = wantToPlay(keepPlaying);
+                printScore(option, &stats);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
                 playerload = 0;
             }
 
