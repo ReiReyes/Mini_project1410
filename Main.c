@@ -80,7 +80,7 @@ char** createBoard ( int size, char **out_data ){
     return board;
 }
 
-int saveGame(char **board, int size, int last_move, int option, const char *filename, GameStats *stats, int inplay)
+int saveGame(char **board, int size, int last_move, int option, const char *filename, GameStats *stats, int inplay, int difficulty)
 {
     FILE *file = fopen(filename, "w");
     if (!file) return -1;
@@ -107,11 +107,12 @@ int saveGame(char **board, int size, int last_move, int option, const char *file
         fputc(stats->win_patterns[i], file);
     }
     fprintf(file, "%d\n", inplay); 
+    fprintf(file, "%d\n", difficulty);
     fclose(file);
     return 0;
 }
 
-int loadGame(char ***board, int *size, int *last_move, int *option,const char *filename, char **data, GameStats *stats, int *inplay) {
+int loadGame(char ***board, int *size, int *last_move, int *option,const char *filename, char **data, GameStats *stats, int *inplay, int *difficulty) {
     FILE *file = fopen(filename, "r");
     if (!file) return -1;
 
@@ -140,6 +141,7 @@ int loadGame(char ***board, int *size, int *last_move, int *option,const char *f
         stats->win_patterns[i] = fgetc(file);
     }
     fscanf(file, "%d\n", inplay);
+    fscanf(file, "%d\n", difficulty);
     fclose(file);
     return 0;
 }
@@ -248,7 +250,7 @@ void printStatistics ( const GameStats * stats, int option ){
     }
     printf("\n");
 }
-int wantToPlay(int keepPlaying, GameStats *stats, int grid, char **board, int player, int option, int inplay){
+int wantToPlay(int keepPlaying, GameStats *stats, int grid, char **board, int player, int option, int inplay, int difficulty){
     while (1){
         printf("\n(1) Play Rematch\n(2) Check Stats \n(3) Save Game\n(4) Go Back To Menu\nWhat do you want to do: "); // have to implement save game option
         scanf("%d", &keepPlaying);
@@ -259,7 +261,8 @@ int wantToPlay(int keepPlaying, GameStats *stats, int grid, char **board, int pl
                 return keepPlaying;
                 
             }else if(keepPlaying == 3){
-                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                int inplay = 0;
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay, difficulty);
                 clearScreen();
                 printf("Game saved successfully.\n");
             }else if(keepPlaying == 2){
@@ -276,254 +279,174 @@ int wantToPlay(int keepPlaying, GameStats *stats, int grid, char **board, int pl
     return 0;
 }
 
-int* aiMoveDecision(int size, char **board){
+int* aiMoveDecision(int size, char **board, int difficulty){
     int playerWin = 0, aiMove[2];
     int *ptr = aiMove;
-
-    for (int i = 0; i < size; i++) { //row winning
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[i][j] == 'O') {
-                playerWin++;
-            }
-            if (board[i][j] == 'X') {
-                playerWin--;
-            }
-        }
-        if(playerWin ==  size-1){
+    if (difficulty == 2){ //Medium Difficulty
+        for (int i = 0; i < size; i++) { //row winning
+            playerWin=0;
             for (int j = 0; j < size; j++) {
-                if(board[i][j] == ' '){
-                    aiMove[0] = i;
-                    aiMove[1] = j;
-                    return ptr;
+                if (board[i][j] == 'O') {
+                    playerWin++;
+                }
+                if (board[i][j] == 'X') {
+                    playerWin--;
+                }
+            }
+            if(playerWin ==  size-1){
+                for (int j = 0; j < size; j++) {
+                    if(board[i][j] == ' '){
+                        aiMove[0] = i;
+                        aiMove[1] = j;
+                        return ptr;
+                    }
                 }
             }
         }
-    }
 
-    for (int i = 0; i < size; i++) { // column winning
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[j][i] == 'O') {
+        for (int i = 0; i < size; i++) { // column winning
+            playerWin=0;
+            for (int j = 0; j < size; j++) {
+                if (board[j][i] == 'O') {
+                    playerWin++;
+                }
+                if (board[j][i] == 'X') {
+                    playerWin--;
+                }
+            }
+            if(playerWin ==  size-1){
+                for (int j = 0; j < size; j++) {
+                    if(board[j][i] == ' '){
+                        aiMove[0] = j;
+                        aiMove[1] = i;
+                        return ptr;
+                    }
+                }
+            }
+        }
+
+        playerWin = 0;
+        for (int i = 0; i < size; i++) { //Diagonal winning
+            if (board[i][i] == 'O') {
                 playerWin++;
             }
-            if (board[j][i] == 'X') {
+            if (board[i][i] == 'X') {
                 playerWin--;
             }
         }
-        if(playerWin ==  size-1){
-            for (int j = 0; j < size; j++) {
-                if(board[j][i] == ' '){
-                    aiMove[0] = j;
+        if(playerWin == size-1){
+            for (int i = 0; i < size; i++) {
+                if (board[i][i] == ' ') {
+                    aiMove[0] = i;
                     aiMove[1] = i;
                     return ptr;
                 }
-            }
         }
-    }
+        }
 
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //Diagonal winning
-        if (board[i][i] == 'O') {
-            playerWin++;
-        }
-        if (board[i][i] == 'X') {
-            playerWin--;
-        }
-    }
-    if(playerWin == size-1){
-        for (int i = 0; i < size; i++) {
-            if (board[i][i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = i;
-                return ptr;
-            }
-    }
-    }
-
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //AntiDiagonal winning
-        if (board[i][size - 1 - i] == 'O') {
-            playerWin++;
-        }
-        if (board[i][size - 1 - i] == 'X') {
-            playerWin--;
-        }
-    }
-    if(playerWin == size-1){
-        for (int i = 1; i < size; i++) {
-            if (board[i][size - 1 - i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = size - 1 - i;
-                return ptr;
-            }
-    }
-    }
-
-    for (int i = 0; i < size; i++) { //row blocking
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[i][j] == 'X') {
+        playerWin = 0;
+        for (int i = 0; i < size; i++) { //AntiDiagonal winning
+            if (board[i][size - 1 - i] == 'O') {
                 playerWin++;
             }
-            if (board[i][j] == 'O') {
+            if (board[i][size - 1 - i] == 'X') {
                 playerWin--;
             }
         }
-        if(playerWin ==  size-1){
-            for (int j = 0; j < size; j++) {
-                if(board[i][j] == ' '){
+        if(playerWin == size-1){
+            for (int i = 1; i < size; i++) {
+                if (board[i][size - 1 - i] == ' ') {
                     aiMove[0] = i;
-                    aiMove[1] = j;
+                    aiMove[1] = size - 1 - i;
                     return ptr;
+                }
+        }
+        }
+
+        for (int i = 0; i < size; i++) { //row blocking
+            playerWin=0;
+            for (int j = 0; j < size; j++) {
+                if (board[i][j] == 'X') {
+                    playerWin++;
+                }
+                if (board[i][j] == 'O') {
+                    playerWin--;
+                }
+            }
+            if(playerWin ==  size-1){
+                for (int j = 0; j < size; j++) {
+                    if(board[i][j] == ' '){
+                        aiMove[0] = i;
+                        aiMove[1] = j;
+                        return ptr;
+                    }
                 }
             }
         }
-    }
 
-    for (int i = 0; i < size; i++) { // column blocking
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[j][i] == 'X') {
+        for (int i = 0; i < size; i++) { // column blocking
+            playerWin=0;
+            for (int j = 0; j < size; j++) {
+                if (board[j][i] == 'X') {
+                    playerWin++;
+                }
+                if (board[j][i] == 'O') {
+                    playerWin--;
+                }
+            }
+            if(playerWin ==  size-1){
+                for (int j = 0; j < size; j++) {
+                    if(board[j][i] == ' '){
+                        aiMove[0] = j;
+                        aiMove[1] = i;
+                        return ptr;
+                    }
+                }
+            }
+        }
+
+        playerWin = 0;
+        for (int i = 0; i < size; i++) { //Diagonal Blocking
+            if (board[i][i] == 'X') {
                 playerWin++;
             }
-            if (board[j][i] == 'O') {
+            if (board[i][i] == 'O') {
                 playerWin--;
             }
         }
-        if(playerWin ==  size-1){
-            for (int j = 0; j < size; j++) {
-                if(board[j][i] == ' '){
-                    aiMove[0] = j;
-                    aiMove[1] = i;
-                    return ptr;
-                }
-            }
-        }
-    }
-
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //Diagonal Blocking
-        if (board[i][i] == 'X') {
-            playerWin++;
-        }
-        if (board[i][i] == 'O') {
-            playerWin--;
-        }
-    }
-    if(playerWin == size-1){
-        for (int i = 0; i < size; i++) {
-            if (board[i][i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = i;
-                return ptr;
-            }
-    }
-    }
-
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //AntiDiagonal Blocking
-        if (board[i][size - 1 - i] == 'X') {
-            playerWin++;
-        }
-        if (board[i][size - 1 - i] == 'O') {
-            playerWin--;
-        }
-    }
-
-    if(playerWin == size-1){
-        for (int i = 0; i < size; i++) {
-            if (board[i][size - 1 - i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = size - 1 - i;
-                return ptr;
-            }
-    }
-    }
-    for (int i = 0; i < size; i++) { //row best move
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[i][j] == 'O') {
-                playerWin++;
-            }
-            if (board[i][j] == 'X') {
-                playerWin = 0;
-                break;
-            }
-        }
-        if(playerWin != 0){
-            for (int j = 0; j < size; j++) {
-                if(board[i][j] == ' '){
+        if(playerWin == size-1){
+            for (int i = 0; i < size; i++) {
+                if (board[i][i] == ' ') {
                     aiMove[0] = i;
-                    aiMove[1] = j;
-                    return ptr;
-                }
-            }
-        }
-    }
-
-    for (int i = 0; i < size; i++) { // column Best move
-        playerWin=0;
-        for (int j = 0; j < size; j++) {
-            if (board[j][i] == 'O') {
-                playerWin++;
-            }
-            if (board[j][i] == 'X') {
-                playerWin = 0;
-                break;
-            }
-        }
-        if(playerWin != 0){
-            for (int j = 0; j < size; j++) {
-                if(board[j][i] == ' '){
-                    aiMove[0] = j;
                     aiMove[1] = i;
                     return ptr;
                 }
+        }
+        }
+
+        playerWin = 0;
+        for (int i = 0; i < size; i++) { //AntiDiagonal Blocking
+            if (board[i][size - 1 - i] == 'X') {
+                playerWin++;
+            }
+            if (board[i][size - 1 - i] == 'O') {
+                playerWin--;
             }
         }
-    }
 
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //Diagonal Best Move
-        if (board[i][i] == 'O') {
-            playerWin++;
+        if(playerWin == size-1){
+            for (int i = 0; i < size; i++) {
+                if (board[i][size - 1 - i] == ' ') {
+                    aiMove[0] = i;
+                    aiMove[1] = size - 1 - i;
+                    return ptr;
+                }
         }
-        if (board[i][i] == 'X') {
-            playerWin = 0;
-            break;
-        }
-    }
-    if(playerWin != 0){
-        for (int i = 0; i < size; i++) {
-            if (board[i][i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = i;
-                return ptr;
-            }
-    }
-    }
-
-    playerWin = 0;
-    for (int i = 0; i < size; i++) { //AntiDiagonal Best Move
-        if (board[i][size - 1 - i] == 'O') {
-            playerWin++;
-        }
-        if (board[i][size - 1 - i] == 'X') {
-            playerWin = 0;
-            break;
         }
     }
-    if(playerWin != 0){
-        for (int i = 1; i < size; i++) {
-            if (board[i][size - 1 - i] == ' ') {
-                aiMove[0] = i;
-                aiMove[1] = size - 1 - i;
-                return ptr;
-            }
+    if (difficulty == 3){ //Hard Difficulty
+        // Future implementation of a more advanced AI algorithm can be placed here.
     }
-    }
-
     while(1){
         int move1 = rand()%size;
         int move2 = rand()%size;
@@ -535,7 +458,7 @@ int* aiMoveDecision(int size, char **board){
     }
     return ptr;
 }
-void Gamepva(int grid,  char **board, int playerload, int *save, int option, GameStats *stats){
+void Gamepva(int grid,  char **board, int playerload, int *save, int option, GameStats *stats, int difficulty){
     int player = 1;
     if (playerload != 0) {
         player = playerload;
@@ -557,7 +480,7 @@ void Gamepva(int grid,  char **board, int playerload, int *save, int option, Gam
         if (col == 0 || row == -64) {
                 clearScreen();
                 int inplay = 1;
-                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay, difficulty);
                 freeGameStats(stats);
                 printf("Game saved successfully.\n");
                 *save = 1;
@@ -574,7 +497,7 @@ void Gamepva(int grid,  char **board, int playerload, int *save, int option, Gam
                 }
         }
         if(player == 2 && isGameOver(grid, board) == ' '){
-            int *aimove= aiMoveDecision(grid, board);
+            int *aimove= aiMoveDecision(grid, board, difficulty);
             board[*aimove][*(aimove+1)] = 'O';
             player = 1;
         }
@@ -618,7 +541,7 @@ void Gamepvp(int grid,  char **board, int playerload, int *save, int option, Gam
         if (col == 0 || row == -64) {
                 clearScreen();
                 int inplay = 1;
-                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay);
+                saveGame(board, grid, player, option, "saved_game.txt", stats, inplay, 0);
                 freeGameStats(stats);
                 printf("Game saved successfully.\n");
                 *save = 1;
@@ -682,7 +605,7 @@ GameStats  createGameStats (){
 
 int main(){
     srand(time(NULL));
-    int option, always = 1, grid, keepPlaying, playerload = 0, inplay = 0;
+    int option, always = 1, grid, keepPlaying, playerload = 0, inplay = 0, difficulty = 0;
     char *data = NULL;
     char **boardptr = NULL;
     GameStats stats;
@@ -729,7 +652,7 @@ int main(){
                     break;
                 }
                 printScore(option, &stats);
-                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay, difficulty);
                 
             }
             free(boardptr);
@@ -740,17 +663,26 @@ int main(){
             break;
         
         case 2:
+            while(1){
+            printf("\nSelect Difficulty Level:\n(1) Easy\n(2) Medium\n(3) Hard\nYour choice: ");
+            scanf("%d", &difficulty);
+            if(difficulty >=1 && difficulty <=3){
+                break;
+            }else{
+                printf("\nInvalid Input, \n%d is not a valid option", difficulty);
+            }
+            }
             keepPlaying =1;
             stats.wins_player1 = 0;
             stats.wins_player2 = 0;
             while(keepPlaying){
                 clearBoard(boardptr, grid);
-                Gamepva(grid, boardptr, playerload, &save, option, &stats);
+                Gamepva(grid, boardptr, playerload, &save, option, &stats, difficulty);
                 if(save == 1){
                     break;
                 }
                 printScore(option, &stats);
-                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay, difficulty);
             }
             free(boardptr);
             free(data);
@@ -763,7 +695,7 @@ int main(){
                 free(data);
                 free(boardptr);
             }
-            if (loadGame(&boardptr, &grid, &playerload, &option, "saved_game.txt", &data, &stats, &inplay) == -1) {
+            if (loadGame(&boardptr, &grid, &playerload, &option, "saved_game.txt", &data, &stats, &inplay, &difficulty) == -1) {
                 printf("No saved game found.\n");
                 break;
             }
@@ -773,7 +705,7 @@ int main(){
             keepPlaying =1;
             while (keepPlaying) {
                 if(option == 2){
-                    Gamepva(grid, boardptr, playerload, &save, option, &stats);
+                    Gamepva(grid, boardptr, playerload, &save, option, &stats, difficulty);
                 }else{
                     Gamepvp(grid, boardptr, playerload, &save, option, &stats);
                 }
@@ -781,7 +713,7 @@ int main(){
                     break;
                 }
                 printScore(option, &stats);
-                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay);
+                keepPlaying = wantToPlay(keepPlaying, &stats, grid, boardptr, playerload, option, inplay, difficulty);
                 playerload = 0;
             }
 
